@@ -1,0 +1,82 @@
+// Code By: Luan Gabriel Vidal
+// Studant IFMG 
+// Project VSS
+
+#define ROSSERIAL_ARDUINO_TCP
+
+#include <WiFi.h>
+#include <Arduino.h> 
+#include <ros.h>
+#include <std_msgs/String.h>
+
+
+
+const char* ssid = "Wi-Fi_407";
+const char* password = "#labor@torio.407#";
+
+// Defina o endereço IP do servidor do soquete (rosserial)
+IPAddress server(10,70,80,126);
+
+// Defina a porta do servidor do soquete (rosserial)
+const uint16_t serverPort = 11411;
+
+ros::NodeHandle nh;
+
+// habilitando a mensagem a ser enviada
+std_msgs::String str_msg;
+ros::Publisher chatter("chatter", &str_msg);
+
+// mensagem que sera enviada
+char  mensagem[13] = "Olá Mundo";
+
+void setup()
+{
+  // Usando o monitor serial do ESP
+  Serial.begin(9600);
+  Serial.println();
+  Serial.print("Conectando em ");
+  Serial.println(ssid);
+
+  // conecta o ESP ao wifi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi conectado");
+  Serial.println("Endereço IP: ");
+  Serial.println(WiFi.localIP());
+
+  // Definindo a conexão com o servidor do soquete (rosserial)
+  nh.getHardware() -> setConnection(server, serverPort);
+  nh.initNode();
+
+  // Outra maneira de conseguir um IP
+  Serial.print("IP = ");
+  Serial.println(nh.getHardware() -> getLocalIP());
+
+  // star da msg
+  nh.advertise(chatter);
+}
+
+void loop()
+{
+
+  if (nh.connected()) {
+
+    Serial.println("Conectado");
+
+    // envio da mensagem
+    str_msg.data = mensagem;
+    chatter.publish( &str_msg );
+    Serial.print("ok");
+  } else {
+    Serial.println("Não conectado");
+  }
+
+  nh.spinOnce();
+
+  // Loop para perfomace
+  delay(100);
+}

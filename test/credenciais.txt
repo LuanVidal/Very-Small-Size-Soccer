@@ -1,0 +1,4 @@
+const char* ssid = "EGR-FIGRA_2.4G-ROSEMEIRE";
+const char* password = "11151821";
+
+IPAddress server(192,168,0,108);

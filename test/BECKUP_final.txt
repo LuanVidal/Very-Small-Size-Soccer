@@ -1,0 +1,180 @@
+// Code By: Luan Gabriel Vidal
+// Studant IFMG 
+// Project VSS
+
+#define ROSSERIAL_ARDUINO_TCP
+
+#include <WiFi.h>
+#include <Arduino.h> 
+#include <ros.h>
+#include <geometry_msgs/Twist.h>
+
+const char* ssid = "Wi-Fi_407";
+const char* password = "#labor@torio.407#";
+
+float v = 0.0;
+float w = 0.0;
+int start = 0;
+
+
+/////////////////
+// PONTE H - ESP32
+int pinA1 = 16;
+int pinA2 = 17;
+int pinB1 = 19;
+int pinB2 = 18;
+
+
+void callback(const geometry_msgs::Twist &msg){
+  start = 1;
+  v = msg.linear.x;
+  w = msg.angular.z;
+  
+}
+
+// Defina o endereço IP do servidor do soquete (rosserial)
+IPAddress server(10,70,82,5);
+
+// Defina a porta do servidor do soquete (rosserial)
+const uint16_t serverPort = 11411;
+
+ros::NodeHandle nh;
+
+// habilitando a mensagem a ser enviada
+geometry_msgs::Twist msg;
+// star da msg
+ros::Publisher pub("esp32/cmd_vel", &msg);
+ros::Subscriber<geometry_msgs::Twist> sub("robot0/cmd_vel/", &callback);
+
+
+void setup() {
+
+  // Configura PWM
+ pinMode(pinA1, OUTPUT);
+ pinMode(pinA2, OUTPUT);
+ pinMode(pinB1, OUTPUT);
+ pinMode(pinB2, OUTPUT);
+
+ // Inicia os motores desligando
+ digitalWrite(pinA1, LOW);
+ digitalWrite(pinA2, LOW);
+ digitalWrite(pinB1, LOW);
+ digitalWrite(pinB2, LOW);
+ ledcAttachPin(pinA1, 0);
+ ledcAttachPin(pinA2, 1);
+ ledcAttachPin(pinB1, 2);
+ ledcAttachPin(pinB2, 3);
+
+ledcSetup(0, 10000,12);
+ledcSetup(1, 10000,12);
+ledcSetup(2, 10000,12);
+ledcSetup(3, 10000,12);
+
+  // Usando o monitor serial do ESP
+
+  Serial.begin(9600);
+  Serial.println();
+  Serial.print("Conectando em ");
+  Serial.println(ssid);
+
+  // conecta o ESP ao wifi
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi conectado");
+  Serial.println("Endereço IP: ");
+  Serial.println(WiFi.localIP());
+
+  // Definindo a conexão com o servidor do soquete (rosserial)
+
+  nh.getHardware() -> setConnection(server, serverPort);
+  nh.initNode();
+
+  // Outra maneira de conseguir um IP
+  Serial.print("IP = ");
+  Serial.println(nh.getHardware() -> getLocalIP());
+
+    // star da msg
+  nh.advertise(pub);
+  nh.subscribe(sub);
+  // ros::Subscriber sub = nh.subscribe("/robot0/cmd_vel/", 10, &callback);
+}
+
+void loop() {
+
+  if (nh.connected()) {
+
+    Serial.println("Conectado");
+    
+    // envio da mensagem
+    msg.linear.x = v;
+    msg.angular.z = w;
+    pub.publish( &msg );
+
+    if(start){
+      Serial.println("aciona motor");
+
+      int vL = map(int(abs(v)), 0, 100, 0, 4095);
+      int vR = map(int(abs(w)), 0, 100, 0, 4095);
+      
+       
+      if( v > 0){
+        ledcWrite(0, vL);
+        ledcWrite(1, 0);
+        
+      }
+      else{
+        ledcWrite(0, 0);
+        ledcWrite(1, vL);
+        
+      }
+      if( w > 0){
+        ledcWrite(2, vR); 
+        ledcWrite(3, 0);   
+        
+      }
+      else{
+        ledcWrite(2, 0); 
+        ledcWrite(3, vR); 
+        
+      }     
+
+//  Teste acionamento dos motores     
+
+  digitalWrite(pinA1, LOW);
+  digitalWrite(pinA2, HIGH);
+  digitalWrite(pinB1, LOW);
+  digitalWrite(pinB2, HIGH);
+ 
+}
+    Serial.print("ok");
+    Serial.println(v);
+    Serial.println(w);
+
+  } else {
+    Serial.println("Não conectado");
+
+    pub.publish( &msg );
+    Serial.print("ok");
+    Serial.println(v);
+    Serial.println(w);
+    start = 0;
+    ledcWrite(0, 0); 
+    ledcWrite(1, 0); 
+    ledcWrite(2, 0); 
+    ledcWrite(3, 0); 
+  }
+
+  //rate.sleep();
+
+nh.spinOnce();
+
+  // Loop para perfomace
+  
+  delay(10);
+}
