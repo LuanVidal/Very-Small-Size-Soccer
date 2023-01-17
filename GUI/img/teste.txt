@@ -1,0 +1,20 @@
+Label(
+    window, 
+    
+    text='Interface gráfica VSS', 
+    font=('arial',15,"bold")
+
+).grid(column=1, row=0)
+
+Label(window, 
+
+    text='Camera dos robôs',
+    font=("bold"),
+    width=540,
+    height=5,
+    justify=LEFT,
+    anchor=W
+
+).grid(column=0, row=1)
+
+canva = Label(window)
